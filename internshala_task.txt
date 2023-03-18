@@ -1,0 +1,109 @@
+1. SQL code to create the weather data table in RDS MySQL
+CREATE TABLE weather (
+  city VARCHAR(255) PRIMARY KEY,
+  temperature FLOAT NOT NULL,
+  humidity FLOAT NOT NULL
+);
+
+==========================================================================================================================================
+
+2. Flask routes and functions to handle weather data queries and modifications
+
+
+from flask import Flask, jsonify, request
+from flask_mysqldb import MySQL
+from datetime import datetime, timedelta
+
+app = Flask(__name__)
+
+app.config['MYSQL_HOST'] = 'database-1.cluster-confspej0rbc.ap-south-1.rds.amazonaws.com'
+app.config['MYSQL_USER'] = 'root'
+app.config['MYSQL_PASSWORD'] = 'rootroot'
+app.config['MYSQL_DB'] = 'task'
+print("connection ok...")
+mysql = MySQL(app)
+
+# Allow cross-origin resource sharing (CORS)
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
+# Query weather data for a city
+@app.route('/weather/<city>', methods=['GET'])
+def get_weather(city):
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM weather WHERE city=%s", [city])
+    data = cur.fetchone()
+    cur.close()
+    if data is None:
+        return jsonify({'message': 'City not found'}), 404
+    else:
+        return jsonify({'city': data[0], 'temperature': data[1], 'humidity': data[2]})
+
+# Add new weather data for a city
+@app.route('/weather', methods=['POST'])
+def add_weather():
+    city = request.json['city']
+    temperature = request.json['temperature']
+    humidity = request.json['humidity']
+    cur = mysql.connection.cursor()
+    cur.execute("INSERT INTO weather (city, temperature, humidity) VALUES (%s, %s, %s)", [city, temperature, humidity])
+    mysql.connection.commit()
+    cur.close()
+    return jsonify({'message': 'Weather data added successfully'})
+
+# Update weather data for a city
+@app.route('/weather/<city>', methods=['PUT'])
+def update_weather(city):
+    temperature = request.json['temperature']
+    humidity = request.json['humidity']
+    cur = mysql.connection.cursor()
+    cur.execute("UPDATE weather SET temperature=%s, humidity=%s WHERE city=%s", [temperature, humidity, city])
+    mysql.connection.commit()
+    cur.close()
+    return jsonify({'message': 'Weather data updated successfully'})
+
+# Delete weather data for a city
+@app.route('/weather/<city>', methods=['DELETE'])
+def delete_weather(city):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM weather WHERE city=%s", [city])
+    mysql.connection.commit()
+    cur.close()
+    return jsonify({'message': 'Weather data deleted successfully'})
+
+
+=========================================================================================================================================
+
+3. Instructions for how to set up and run the API on an EC2 instance and connect to RDS MySQL
+
+1.Launch an EC2 instance with the appropriate configuration (e.g., Ubuntu 18.04, t2.micro instance type, security group with inbound      traffic allowed on port 80).
+
+2.Connect to your EC2 instance via SSH.
+
+3.Install the required dependencies on your EC2 instance, such as Python, Flask, MySQL Connector, etc.
+
+4.Clone the codebase containing your Flask API and configure the Flask app with the necessary details such as the RDS MySQL database credentials, endpoint, and database name.
+
+5.Run the Flask app using the following command:
+
+6.Copy code
+sudo python3 app.py
+This will start the Flask app on port 80.
+
+7.Verify that the API is running correctly by making a request to the endpoint (e.g., http://<EC2_INSTANCE_IP>/weather/<city_name>).
+
+8.To connect to RDS MySQL from your EC2 instance, use the MySQL Connector library to establish a connection to your RDS instance using the endpoint and credentials provided by AWS RDS.
+
+Here is an example of how to establish a connection using MySQL Connector in Python:
+
+cmd=mysql -h database-1.cluster-confspej0rbc.ap-south-1.rds.amazonaws.com -u root -p
+
+9.Once you have established a connection to RDS MySQL, you can perform SQL queries to retrieve and modify data in your database.
+  
+screen -S flask
+export FLASK_APP=your_flask_app.py
+flask run --host=0.0.0.0 --port=88
